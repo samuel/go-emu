@@ -95,6 +95,11 @@ func (cpu *CPU6502) Step() os.Error {
         value = int(cpu.memory.ReadByte(uint16(addr)))
     case AMRelative:
         addr = int(cpu.PC) + int(int8(opcode.Value))
+    case AMIndirectY:
+        addr = (int(cpu.memory.ReadByte(uint16(opcode.Value))) |
+                (int(cpu.memory.ReadByte(uint16(opcode.Value+1))) << 8))
+        addr += int(cpu.Y)
+        value = int(cpu.memory.ReadByte(uint16(addr)))
     }
 
     switch opcode.Spec.Instruction {
@@ -122,8 +127,20 @@ func (cpu *CPU6502) Step() os.Error {
         if !cpu.SignFlag {
             cpu.PC = uint16(addr)
         }
+    case I_BNE:
+        if !cpu.ZeroFlag {
+            cpu.PC = uint16(addr)
+        }
     case I_CLD:
         cpu.DecimalFlag = false
+    case I_DEX:
+        cpu.X -= 1
+        cpu.SignFlag = cpu.X & 0x80 != 0
+        cpu.ZeroFlag = cpu.X == 0
+    case I_DEY:
+        cpu.Y -= 1
+        cpu.SignFlag = cpu.Y & 0x80 != 0
+        cpu.ZeroFlag = cpu.Y == 0
     case I_JMP:
         cpu.PC = uint16(addr)
     case I_JSR:
@@ -161,8 +178,16 @@ func (cpu *CPU6502) Step() os.Error {
         cpu.memory.WriteByte(uint16(addr), cpu.X)
     case I_STY:
         cpu.memory.WriteByte(uint16(addr), cpu.Y)
+    case I_TXA:
+        cpu.A = cpu.X
+        cpu.SignFlag = cpu.A & 0x80 != 0
+        cpu.ZeroFlag = cpu.A == 0
     case I_TXS:
         cpu.SP = cpu.X
+    case I_TYA:
+        cpu.A = cpu.Y
+        cpu.SignFlag = cpu.A & 0x80 != 0
+        cpu.ZeroFlag = cpu.A == 0
     }
 
     return nil
