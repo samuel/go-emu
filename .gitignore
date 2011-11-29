@@ -1,3 +1,5 @@
 *.6
+6.out
+_testmain.go
 _obj
 _test

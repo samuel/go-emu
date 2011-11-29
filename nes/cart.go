@@ -136,5 +136,5 @@ func (cart *Cart) String() string {
         extra += ", Title=" + cart.Title
     }
     return fmt.Sprintf("Cart{Mapper=%d Num8KRAMPages=%d, %dx16k PRG, %dx8k CHR, %s}",
-        cart.Mapper, cart.Num8KRAMPages, len(cart.PRGPages), len(cart.CHRPages), extra)
+        cart.Mapper, cart.Num8KRAMPages, len(cart.PRGPages)/0x4000, len(cart.CHRPages), extra)
 }

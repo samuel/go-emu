@@ -5,5 +5,6 @@ GOFILES=\
 	6502.go\
 	disasm.go\
 	memory.go\
+	opcodes.go\
 
 include $(GOROOT)/src/Make.pkg
