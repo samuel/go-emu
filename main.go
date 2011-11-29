@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-    cart, err := nes.LoadCartFile("nestest.nes")
+    cart, err := nes.LoadCartFile("PONG.NES")
     if err != nil {
         panic(err.String())
     }
@@ -86,9 +86,9 @@ func main() {
         fmt.Printf("%s %-27s A:%02X X:%02X Y:%02X P:%02X SP:%02X CYC:%3d SL:%d %s\n",
             opcode.InstructionName, opcode.FormatArguments(val, state.CPU.PC+2) + " " + mem,
             state.CPU.A, state.CPU.X, state.CPU.Y, state.CPU.GetP(), state.CPU.SP,
-            state.CPU.PPUCycle, state.CPU.ScanLine, state.CPU.FlagString())
+            state.PPUCycle, state.Scanline, state.CPU.FlagString())
 
-        state.CPU.Step()
+        state.Step()
     }
 
     // cpu6502.Disassemble(cart.PRGPages[len(cart.PRGPages)-1][pc-0xc000:])

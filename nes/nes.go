@@ -6,6 +6,15 @@ import (
     "cpu6502"
 )
 
+const (
+    SCANLINES = 262
+    SCANLINE_VBLANK = 243
+    PIXELS_PER_SCANLINE = 341
+
+    // Register 2002h
+    BIT_VBLANK = 0x80
+)
+
 const CPU_RESET_VECTOR = 0xFFFC
 
 // CPU Memory Map (16bit buswidth, 0-FFFFh)
@@ -24,6 +33,9 @@ type NESState struct {
     cartSRAM [8192]byte     // 6000h-7FFFh   Cartridge SRAM Area 8K
     ppuRegisters [8]byte    // 2000h-2007h (mirrored to 2008h-3fffh)
     apuRegisters [32]byte   // 4000h-4017h
+    PPUCycle int
+    Scanline int
+    VBlank bool
     mapper Mapper
     CPU *cpu6502.CPU6502
 }
@@ -34,7 +46,7 @@ func NewNESState(cart *Cart) (*NESState, os.Error) {
         return nil, err
     }
 
-    state := &NESState{mapper:mapper}
+    state := &NESState{mapper:mapper, Scanline:241}
 
     // TODO: Set workingRam to 0xFF except 0x0008=0xf7, 0x0009=0xef, 0x000a=0xdf, 0x000f=0xbf
 
@@ -42,6 +54,25 @@ func NewNESState(cart *Cart) (*NESState, os.Error) {
     state.CPU.PC = uint16(state.ReadByte(CPU_RESET_VECTOR)) | (uint16(state.ReadByte(CPU_RESET_VECTOR+1)) << 8)
 
     return state, nil
+}
+
+// func (nes *NESState) GetScanline() int {
+//     return (nes.CPU.Cycles * 3) / 341 - 21
+// }
+
+func (nes *NESState) Step() {
+    cycles, _ := nes.CPU.Step()
+    nes.PPUCycle += 3*cycles
+    if nes.PPUCycle >= PIXELS_PER_SCANLINE {
+        nes.PPUCycle -= PIXELS_PER_SCANLINE
+        nes.Scanline++
+        if nes.Scanline >= SCANLINES {
+            nes.Scanline -= SCANLINES
+            nes.VBlank = false
+        } else if nes.Scanline >= SCANLINE_VBLANK {
+            nes.VBlank = true
+        }
+    }
 }
 
 func (nes *NESState) ReadByte(address uint16) byte {
@@ -53,7 +84,10 @@ func (nes *NESState) ReadByte(address uint16) byte {
         // 6 = sprite 0 hit (1=background-to-Sprite0 collision)
         // 5 = lost sprites (1=more than 8 sprites in 1 scanline)
         // 4-0 = unused
-        return 0x80 // VBlank
+        var val byte = 0
+        if nes.VBlank { val |= BIT_VBLANK }
+        nes.VBlank = false
+        return val // VBlank
     }
     if address >= 0x2000 && address <= 0x3fff {
         return nes.ppuRegisters[(address - 0x2000) & 7]

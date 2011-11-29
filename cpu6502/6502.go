@@ -43,8 +43,6 @@ type CPU6502 struct {
     SP uint8 // stack pointer
 
     Cycles uint64
-    PPUCycle int
-    ScanLine int
 
     memory MemoryAccess
 }
@@ -54,9 +52,8 @@ func NewCPU6502(memory MemoryAccess) *CPU6502 {
             memory: memory,
             SP: 0xFD,
             // P: 0x34, 24?
-            InterruptsDisabledFlag: true,
-            // SoftwareInterruptFlag: true,
-            ScanLine: 241}
+            InterruptsDisabledFlag: true}
+            // SoftwareInterruptFlag: true}
     return cpu
 }
 
@@ -96,8 +93,8 @@ func (cpu *CPU6502) FlagString() string {
 }
 
 func (cpu *CPU6502) String() string {
-    return fmt.Sprintf("CPU6502{PC:%04x SP:%02x A:%02x X:%02x Y:%02x P:%02x:%s CYC:%d SL:%d}",
-        cpu.PC, cpu.SP, cpu.A, cpu.X, cpu.Y, cpu.GetP(), cpu.FlagString(), cpu.PPUCycle, cpu.ScanLine)
+    return fmt.Sprintf("CPU6502{PC:%04x SP:%02x A:%02x X:%02x Y:%02x P:%02x:%s}",
+        cpu.PC, cpu.SP, cpu.A, cpu.X, cpu.Y, cpu.GetP(), cpu.FlagString())
 }
 
 func (cpu *CPU6502) ReadByte(address uint16) byte {
@@ -127,7 +124,7 @@ func (cpu *CPU6502) PopAddress() uint16 {
     return uint16(cpu.PopByte()) | (uint16(cpu.PopByte()) << 8)
 }
 
-func (cpu *CPU6502) Step() os.Error {
+func (cpu *CPU6502) Step() (int, os.Error) {
     opcode, opval := cpu.ReadOpcode()
     cpu.PC += uint16(opcode.Size)
 
@@ -550,14 +547,6 @@ func (cpu *CPU6502) Step() os.Error {
     }
 
     cpu.Cycles += uint64(cycles)
-    cpu.PPUCycle += 3*cycles
-    if cpu.PPUCycle >= 341 {
-        cpu.PPUCycle -= 341
-        cpu.ScanLine++
-        if cpu.ScanLine > 260 {
-            cpu.ScanLine -= 262
-        }
-    }
 
-    return nil
+    return cycles, nil
 }
