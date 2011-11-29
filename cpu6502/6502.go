@@ -310,6 +310,31 @@ func (cpu *CPU6502) Step() os.Error {
         cpu.Y += 1
         cpu.SignFlag = cpu.Y & 0x80 != 0
         cpu.ZeroFlag = cpu.Y == 0
+    case I_ISC: // undocumented - equivalent to INC, SBC
+        value++
+        cpu.memory.WriteByte(addr, value)
+        temp := uint16(cpu.A) - uint16(value)
+        if !cpu.CarryFlag {
+            temp--
+        }
+        cpu.SignFlag = temp & 0x80 != 0
+        cpu.ZeroFlag = temp & 0xff == 0
+        cpu.OverflowFlag = ((cpu.A ^ byte(temp)) & 0x80 != 0) && ((cpu.A ^ value) & 0x80 != 0)
+        if cpu.DecimalFlag {
+            var carry byte = 1
+            if cpu.CarryFlag {
+                carry = 0
+            }
+            if ((cpu.A & 0x0f) - carry) < (value & 0x0f) {
+                /* EP */
+                temp -= 6
+            }
+            if temp > 0x99 {
+                temp -= 0x60
+            }
+        }
+        cpu.CarryFlag = temp < 0x100
+        cpu.A = byte(temp & 0xff)
     case I_JMP:
         cpu.PC = addr
     case I_JSR:
@@ -358,6 +383,21 @@ func (cpu *CPU6502) Step() os.Error {
         cpu.ZeroFlag = cpu.A == 0
     case I_PLP:
         cpu.SetP(cpu.PopByte() & ^byte(FLAG_B)) // B flag discarded
+    case I_RLA: // undocumented - equivalent to ROL, AND
+        var carry byte = 0
+        if cpu.CarryFlag {
+            carry = 1
+        }
+        cpu.CarryFlag = value & 0x80 > 0
+        value = (value << 1) | carry
+        if opcode.AddressingMode == AMAccumulator {
+            cpu.A = value
+        } else {
+            cpu.memory.WriteByte(addr, value)
+        }
+        cpu.A &= value
+        cpu.SignFlag = cpu.A & 0x80 > 0
+        cpu.ZeroFlag = cpu.A == 0
     case I_RTI:
         cpu.SetP(cpu.PopByte())
         cpu.PC = cpu.PopAddress()
@@ -389,6 +429,33 @@ func (cpu *CPU6502) Step() os.Error {
         } else {
             cpu.memory.WriteByte(addr, value)
         }
+    case I_RRA: // undocumented - equivalent to ROR, ADC
+        var carry byte = 0
+        if cpu.CarryFlag {
+            carry = 0x80
+        }
+        cpu.CarryFlag = value & 0x01 > 0
+        value = (value >> 1) | carry
+        if opcode.AddressingMode == AMAccumulator {
+            cpu.A = value
+        } else {
+            cpu.memory.WriteByte(addr, value)
+        }
+        res := uint16(value) + uint16(cpu.A)
+        if cpu.CarryFlag { res++ }
+        cpu.ZeroFlag = (res & 0xff) == 0
+        if cpu.DecimalFlag {
+            if (cpu.A ^ value ^ byte(res)) & 0x10 == 0x10 {
+                res += 6
+            }
+            if res & 0xf0 > 0x90 {
+                res += 0x60
+            }
+        }
+        cpu.SignFlag = res & 0x80 != 0
+        cpu.OverflowFlag = !((cpu.A ^ value) & 0x80 != 0) && ((uint16(cpu.A) ^ res) & 0x80 != 0)
+        cpu.CarryFlag = res & 0x100 != 0
+        cpu.A = byte(res & 0xff)
     case I_RTS:
         cpu.PC = cpu.PopAddress() + 1
     case I_SBC:
@@ -420,6 +487,29 @@ func (cpu *CPU6502) Step() os.Error {
         cpu.DecimalFlag = true
     case I_SEI:
         cpu.InterruptsDisabledFlag = true
+    case I_SLO: // undocumented - equivalent to ASL, ORA
+        cpu.CarryFlag = value & 0x80 != 0
+        value = value << 1
+        if opcode.AddressingMode == AMAccumulator {
+            cpu.A = value
+        } else {
+            cpu.memory.WriteByte(addr, value)
+        }
+
+        cpu.A |= value
+        cpu.SignFlag = cpu.A & 0x80 != 0
+        cpu.ZeroFlag = cpu.A == 0
+    case I_SRE: // undocumented - equivalent to LSR, EOR
+        cpu.CarryFlag = value & 0x01 > 0
+        value >>= 1
+        if opcode.AddressingMode == AMAccumulator {
+            cpu.A = value
+        } else {
+            cpu.memory.WriteByte(addr, value)
+        }
+        cpu.A ^= value
+        cpu.SignFlag = cpu.A & 0x80 != 0
+        cpu.ZeroFlag = cpu.A == 0
     case I_STA:
         cpu.memory.WriteByte(addr, cpu.A)
     case I_STX:

@@ -23,7 +23,7 @@ func main() {
     // fmt.Println(state)
     state.CPU.PC = 0xc000
 
-    for i := 0; i < 8192; i++ {
+    for i := 0; i < 8991; i++ {
         opcode, val := state.CPU.ReadOpcode()
         if opcode.Instruction == cpu6502.I_XXX {
             panic(fmt.Sprintf("Unknown opcode %02x", opcode.Opcode))

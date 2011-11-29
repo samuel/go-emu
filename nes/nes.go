@@ -23,6 +23,7 @@ type NESState struct {
     workingRam [2048]byte   // 0000h-07FFh   Internal 2K Work RAM (mirrored to 800h-1FFFh)
     cartSRAM [8192]byte     // 6000h-7FFFh   Cartridge SRAM Area 8K
     ppuRegisters [8]byte    // 2000h-2007h (mirrored to 2008h-3fffh)
+    apuRegisters [32]byte   // 4000h-4017h
     mapper Mapper
     CPU *cpu6502.CPU6502
 }
@@ -57,6 +58,9 @@ func (nes *NESState) ReadByte(address uint16) byte {
     if address >= 0x2000 && address <= 0x3fff {
         return nes.ppuRegisters[(address - 0x2000) & 7]
     }
+    if address >= 0x4000 && address <= 0x4017 {
+        return nes.apuRegisters[address - 0x4000]
+    }
     if address >= 0x8000 && address <= 0xffff {
         return nes.mapper.ReadByte(address)
     }
@@ -70,6 +74,8 @@ func (nes *NESState) WriteByte(address uint16, value byte) {
         nes.workingRam[address] = value
     } else if address >= 0x2000 && address <= 0x3fff {
         nes.ppuRegisters[(address - 0x2000) & 7] = value
+    } else if address >= 0x4000 && address <= 0x4017 {
+        nes.apuRegisters[address - 0x4000] = value
     } else {
         panic("unknown address")
     }
