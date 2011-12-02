@@ -6,115 +6,118 @@ import (
 
 const (
     // Addressing Modes
-    AMImmediate   = 1
-    AMZeroPage    = 2
-    AMZeroPageX   = 3
-    AMZeroPageY   = 4
-    AMAbsolute    = 5
-    AMAbsoluteX   = 6
-    AMAbsoluteY   = 7
-    AMIndirect    = 8
-    AMIndirectX   = 9
-    AMIndirectY   = 10
-    AMAccumulator = 11
-    AMRelative    = 12
-    AMImplied     = 13
+    AMImmediate int  = iota
+    AMZeroPage
+    AMZeroPageX
+    AMZeroPageY
+    AMAbsolute
+    AMAbsoluteX
+    AMAbsoluteY
+    AMIndirect
+    AMIndirectX
+    AMIndirectY
+    AMAccumulator
+    AMRelative
+    AMImplied
+)
 
-    I_XXX = 0
-    I_ADC = 1
-    I_AND = 2
-    I_ASL = 3
-    I_BCC = 4
-    I_BCS = 5
-    I_BEQ = 6
-    I_BIT = 7
-    I_BMI = 8
-    I_BNE = 9
-    I_BPL = 10
-    I_BRK = 11
-    I_BVC = 12
-    I_BVS = 13
-    I_CLC = 14
-    I_CLD = 15
-    I_CLI = 16
-    I_CLV = 17
-    I_CMP = 18
-    I_CPX = 19
-    I_CPY = 20
-    I_DEC = 21
-    I_DEX = 22
-    I_DEY = 23
-    I_EOR = 24
-    I_INC = 25
-    I_INX = 26
-    I_INY = 27
-    I_JMP = 28
-    I_JSR = 29
-    I_LDA = 30
-    I_LDX = 31
-    I_LDY = 32
-    I_LSR = 33
-    I_NOP = 34
-    I_ORA = 35
-    I_PHA = 36
-    I_PHP = 37
-    I_PLA = 38
-    I_PLP = 39
-    I_ROL = 40
-    I_ROR = 41
-    I_RTI = 42
-    I_RTS = 43
-    I_SBC = 44
-    I_SEC = 45
-    I_SED = 46
-    I_SEI = 47
-    I_STA = 48
-    I_STX = 49
-    I_STY = 50
-    I_TAX = 51
-    I_TAY = 52
-    I_TSX = 53
-    I_TXA = 54
-    I_TXS = 55
-    I_TYA = 56
+const (
+    // Instructions
+    I_XXX int = iota
+    I_ADC
+    I_AND
+    I_ASL
+    I_BCC
+    I_BCS
+    I_BEQ
+    I_BIT
+    I_BMI
+    I_BNE
+    I_BPL
+    I_BRK
+    I_BVC
+    I_BVS
+    I_CLC
+    I_CLD
+    I_CLI
+    I_CLV
+    I_CMP
+    I_CPX
+    I_CPY
+    I_DEC
+    I_DEX
+    I_DEY
+    I_EOR
+    I_INC
+    I_INX
+    I_INY
+    I_JMP
+    I_JSR
+    I_LDA
+    I_LDX
+    I_LDY
+    I_LSR
+    I_NOP
+    I_ORA
+    I_PHA
+    I_PHP
+    I_PLA
+    I_PLP
+    I_ROL
+    I_ROR
+    I_RTI
+    I_RTS
+    I_SBC
+    I_SEC
+    I_SED
+    I_SEI
+    I_STA
+    I_STX
+    I_STY
+    I_TAX
+    I_TAY
+    I_TSX
+    I_TXA
+    I_TXS
+    I_TYA
     // Undocumented/invalid opcodes
-    I_UNDOCUMENTED = 57
-    I_KIL = 57 // Stop program counter (processor lock up)
-    I_DOP = 58 // double NOP
-    I_SLO = 59 // Shift left one bit in memory, then OR accumulator with memory. Status flags: N, Z, C
-    I_AAC = 60 // (ANC) AND byte with accumulator. If result is negative then carry is set. Status flags: N, Z, C
-    I_TOP = 61 // triple NOP
-    I_NP2 = 62 // NOP - undocumented
-    I_RLA = 63 // rotate one bit left in memory, then AND accumulator with memory. Status flags: N, Z, C
-    I_SRE = 64 // Shift right one bit in memory, then EOR accumulator with memory. Status flags: N,Z,C
-    I_ASR = 65 // [ARR] AND byte with accumulator, then shift right one bit in accumulator. Status flags: N,Z,C
-    I_RRA = 66 // Rotate one bit right in memory, then add memory to accumulator (with carry). Status flags: N,V,Z,C
-    I_AAR = 67 // AND byte with accumulator, then rotate one bit right in accumulator and check bit 5 and 6:
+    I_UNDOCUMENTED
+    I_KIL // Stop program counter (processor lock up)
+    I_DOP // double NOP
+    I_SLO // Shift left one bit in memory, then OR accumulator with memory. Status flags: N, Z, C
+    I_AAC // (ANC) AND byte with accumulator. If result is negative then carry is set. Status flags: N, Z, C
+    I_TOP // triple NOP
+    I_NP2 // NOP - undocumented
+    I_RLA // rotate one bit left in memory, then AND accumulator with memory. Status flags: N, Z, C
+    I_SRE // Shift right one bit in memory, then EOR accumulator with memory. Status flags: N,Z,C
+    I_ASR // [ARR] AND byte with accumulator, then shift right one bit in accumulator. Status flags: N,Z,C
+    I_RRA // Rotate one bit right in memory, then add memory to accumulator (with carry). Status flags: N,V,Z,C
+    I_AAR // AND byte with accumulator, then rotate one bit right in accumulator and check bit 5 and 6:
                // If both bits are 1: set C, clear V.
                // If both bits are 0: clear C and V.
                // If only bit 5 is 1: set V, clear C.
                // If only bit 6 is 1: set C and V.
                // Status flags: N,V,Z,C
-    I_AAX = 68 // (SAX) [AXS] AND X register with accumulator and store result in memory. Status flags: N,Z
-    I_XAA = 69 // (ANE) Exact operation unknown. Read the referenced documents for more information and observations.
-    I_AXA = 70 // (SHA) AND X register with accumulator then AND result with 7 and store in memory. Status flags: -
-    I_XAS = 71 // (SHS) [TAS] AND X register with accumulator and store result in stack
+    I_AAX // (SAX) [AXS] AND X register with accumulator and store result in memory. Status flags: N,Z
+    I_XAA // (ANE) Exact operation unknown. Read the referenced documents for more information and observations.
+    I_AXA // (SHA) AND X register with accumulator then AND result with 7 and store in memory. Status flags: -
+    I_XAS // (SHS) [TAS] AND X register with accumulator and store result in stack
                // pointer, then AND stack pointer with the high byte of the
                // target address of the argument + 1. Store result in memory.
                // S = X AND A, M = S AND HIGH(arg) + 1
                // Status flags: -
-    I_SYA = 72 // (SHY) [SAY] AND Y register with the high byte of the target address of the argument + 1. Store the result in memory.
+    I_SYA // (SHY) [SAY] AND Y register with the high byte of the target address of the argument + 1. Store the result in memory.
                // M = Y AND HIGH(arg) + 1
                // Status flags: -
-    I_SXA = 73 // (SHX) [XAS] AND X register with the high byte of the target address of the argument + 1. Store the result in memory.
+    I_SXA // (SHX) [XAS] AND X register with the high byte of the target address of the argument + 1. Store the result in memory.
                // M = X AND HIGH(arg) + 1
                // Status flags: -
-    I_LAX = 74 // Load accumulator and X register with memory. Status flags: N,Z
-    I_ATX = 75 // (LXA) [OAL] AND byte with accumulator, then transfer accumulator to X register. Status flags: N,Z
-    I_LAR = 76 // (LAE) [LAS] AND memory with stack pointer, transfer result to accumulator, X register and stack pointer. Status flags: N,Z
-    I_DCP = 77 // [DCM] Subtract 1 from memory (without borrow). Status flags: C
-    I_AXS = 78 // (SBX) [SAX] AND X register with accumulator and store result in X register, then subtract byte from X register (without borrow). Status flags: N,Z,C
-    I_ISC = 79 // (ISB) [INS] Increase memory by one, then subtract memory from accumulator (with borrow). Status flags: N,V,Z,C
+    I_LAX // Load accumulator and X register with memory. Status flags: N,Z
+    I_ATX // (LXA) [OAL] AND byte with accumulator, then transfer accumulator to X register. Status flags: N,Z
+    I_LAR // (LAE) [LAS] AND memory with stack pointer, transfer result to accumulator, X register and stack pointer. Status flags: N,Z
+    I_DCP // [DCM] Subtract 1 from memory (without borrow). Status flags: C
+    I_AXS // (SBX) [SAX] AND X register with accumulator and store result in X register, then subtract byte from X register (without borrow). Status flags: N,Z,C
+    I_ISC // (ISB) [INS] Increase memory by one, then subtract memory from accumulator (with borrow). Status flags: N,V,Z,C
     I_SB2 = I_SBC // Same as legal opcode $E9 (SBC #byte)
 )
 
