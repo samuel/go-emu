@@ -101,6 +101,14 @@ func (cpu *CPU6502) ReadByte(address uint16, peek bool) byte {
     return cpu.memory.ReadByte(address, peek)
 }
 
+// Read a 16-bit unsigned int dealing with page wrap
+func (cpu *CPU6502) ReadUI16(address uint16, peek bool) uint16 {
+    // There's a bug in the 6502 where Indirect addressing doesn't advance pages
+    // 02ff -> bytes 02ff & 0200 rather than 02ff 0300
+    return uint16(cpu.memory.ReadByte(address, peek)) |
+        (uint16(cpu.memory.ReadByte((address + 1) & 0xff + (address & 0xff00), peek)) << 8)
+}
+
 func (cpu *CPU6502) ReadOpcode() (OpcodeSpec, uint16) {
     return ReadOpcode(cpu.memory, cpu.PC)
 }
@@ -172,12 +180,10 @@ func (cpu *CPU6502) Step() (int, os.Error) {
         addr = cpu.PC + uint16(int8(opval))
     case AMIndirectX:
         addr = uint16(byte(opval) + cpu.X)
-        addr = (uint16(cpu.memory.ReadByte(addr, false)) |
-                (uint16(cpu.memory.ReadByte((addr + 1) & 0xff + (addr & 0xff00), false)) << 8))
+        addr = cpu.ReadUI16(addr, false)
         value = cpu.memory.ReadByte(addr, !opcode.Instruction.Read)
     case AMIndirectY:
-        addrt := (uint16(cpu.memory.ReadByte(opval, false)) |
-                  (uint16(cpu.memory.ReadByte((opval + 1) & 0xff + (opval & 0xff00), false)) << 8))
+        addrt := cpu.ReadUI16(opval, false)
         addr = addrt + uint16(cpu.Y)
         if page_cycles && addrt & 0xff00 != addr & 0xff00 {
             // page crossing
@@ -185,10 +191,7 @@ func (cpu *CPU6502) Step() (int, os.Error) {
         }
         value = cpu.memory.ReadByte(addr, !opcode.Instruction.Read)
     case AMIndirect:
-        // There's a bug in the 6502 where Indirect addressing doesn't advance pages
-        // 02ff -> bytes 02ff & 0200 rather than 02ff 0300
-        addr = (uint16(cpu.memory.ReadByte(opval, false)) |
-                (uint16(cpu.memory.ReadByte((opval + 1) & 0xff + (opval & 0xff00), false)) << 8))
+        addr = cpu.ReadUI16(opval, false)
     }
 
     jump := false // jump to 'addr' and account for clock
@@ -245,6 +248,12 @@ func (cpu *CPU6502) Step() (int, os.Error) {
         if !cpu.SignFlag { jump = true }
     case I_BNE.Num:
         if !cpu.ZeroFlag { jump = true }
+    case I_BRK.Num:
+        cpu.PushAddress(cpu.PC+1)
+        cpu.SoftwareInterruptFlag = true
+        cpu.PushByte(cpu.GetP())
+        cpu.InterruptsDisabledFlag = true
+        cpu.PC = cpu.ReadUI16(0xfffe, false)
     case I_BVC.Num:
         if !cpu.OverflowFlag { jump = true }
     case I_BVS.Num:

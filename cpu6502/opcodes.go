@@ -136,6 +136,7 @@ var (
 
 var (
     opcodes = [256]OpcodeSpec{
+        // BRK is actually a 2 byte instruction
         {0x00, I_BRK, 1, AMImplied, 7},     {0x01, I_ORA, 2, AMIndirectX, 6},
         {0x02, I_KIL, 1, AMImplied, 0},     {0x03, I_SLO, 2, AMIndirectX, 8},
         {0x04, I_DOP, 2, AMZeroPage, 3},    {0x05, I_ORA, 2, AMZeroPage, 3},
