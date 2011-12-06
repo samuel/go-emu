@@ -9,7 +9,7 @@ const (
 )
 
 type Mapper interface {
-    ReadByte(address uint16) byte
+    ReadByte(address uint16, peek bool) byte
     WriteByte(address uint16, value byte)
 }
 

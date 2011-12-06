@@ -8,8 +8,9 @@ import (
 
 const (
     SCANLINES = 262
-    SCANLINE_VBLANK = 243
-    PIXELS_PER_SCANLINE = 341
+    SCANLINE_VBLANK = 240 //243
+    PIXELS_PER_SCANLINE = 1364 //341
+    CPU_CYCLES_PER_VIDEO_CYCLE = 12
 
     // Register 2002h
     BIT_VBLANK = 0x80
@@ -38,6 +39,8 @@ type NESState struct {
     VBlank bool
     mapper Mapper
     CPU *cpu6502.CPU6502
+
+    testing bool
 }
 
 func NewNESState(cart *Cart) (*NESState, os.Error) {
@@ -46,12 +49,15 @@ func NewNESState(cart *Cart) (*NESState, os.Error) {
         return nil, err
     }
 
-    state := &NESState{mapper:mapper, Scanline:241}
+    state := &NESState{mapper:mapper} //, Scanline:241}
 
     // TODO: Set workingRam to 0xFF except 0x0008=0xf7, 0x0009=0xef, 0x000a=0xdf, 0x000f=0xbf
 
     state.CPU = cpu6502.NewCPU6502(state)
-    state.CPU.PC = uint16(state.ReadByte(CPU_RESET_VECTOR)) | (uint16(state.ReadByte(CPU_RESET_VECTOR+1)) << 8)
+    state.CPU.PC = uint16(state.ReadByte(CPU_RESET_VECTOR, false)) | (uint16(state.ReadByte(CPU_RESET_VECTOR+1, false)) << 8)
+
+    // TODO
+    state.testing = true
 
     return state, nil
 }
@@ -62,7 +68,7 @@ func NewNESState(cart *Cart) (*NESState, os.Error) {
 
 func (nes *NESState) Step() {
     cycles, _ := nes.CPU.Step()
-    nes.PPUCycle += 3*cycles
+    nes.PPUCycle += CPU_CYCLES_PER_VIDEO_CYCLE*cycles
     if nes.PPUCycle >= PIXELS_PER_SCANLINE {
         nes.PPUCycle -= PIXELS_PER_SCANLINE
         nes.Scanline++
@@ -75,28 +81,34 @@ func (nes *NESState) Step() {
     }
 }
 
-func (nes *NESState) ReadByte(address uint16) byte {
+func (nes *NESState) ReadByte(address uint16, peek bool) byte {
     if address >= 0x0000 && address <= 0x07ff {
         return nes.workingRam[address]
     }
-    if address == 0x2002 { // PPU Status Register
-        // 7 = VBlank flag (reset on read and end of vblank)
-        // 6 = sprite 0 hit (1=background-to-Sprite0 collision)
-        // 5 = lost sprites (1=more than 8 sprites in 1 scanline)
-        // 4-0 = unused
-        var val byte = 0
-        if nes.VBlank { val |= BIT_VBLANK }
-        nes.VBlank = false
-        return val // VBlank
-    }
     if address >= 0x2000 && address <= 0x3fff {
-        return nes.ppuRegisters[(address - 0x2000) & 7]
+        trans := (address - 0x2000) & 7
+        if trans == 2 { // PPU Status Register
+            // 7 = VBlank flag (reset on read and end of vblank)
+            // 6 = sprite 0 hit (1=background-to-Sprite0 collision)
+            // 5 = lost sprites (1=more than 8 sprites in 1 scanline)
+            // 4-0 = unused
+            var val byte = 0
+            if nes.VBlank { val |= BIT_VBLANK }
+            if !peek {
+                nes.VBlank = false
+            }
+            return val // VBlank
+        }
+        return nes.ppuRegisters[trans]
     }
     if address >= 0x4000 && address <= 0x4017 {
         return nes.apuRegisters[address - 0x4000]
     }
+    if address >= 0x6000 && address <= 0x7fff {
+        return nes.cartSRAM[address - 0x6000]
+    }
     if address >= 0x8000 && address <= 0xffff {
-        return nes.mapper.ReadByte(address)
+        return nes.mapper.ReadByte(address, peek)
     }
     panic("unknown address")
 }
@@ -110,11 +122,23 @@ func (nes *NESState) WriteByte(address uint16, value byte) {
         nes.ppuRegisters[(address - 0x2000) & 7] = value
     } else if address >= 0x4000 && address <= 0x4017 {
         nes.apuRegisters[address - 0x4000] = value
+    } else if address >= 0x6000 && address <= 0x7fff {
+        if nes.testing {
+            if address == 0x6000 {
+                fmt.Printf("%.2x\n", value)
+                if value < 0x80 {
+                    os.Exit(1)
+                }
+            } else if address >= 0x6004 {
+                fmt.Printf("%c", value)
+            }
+        }
+        nes.cartSRAM[address - 0x6000] = value
     } else {
         panic("unknown address")
     }
 }
 
 func (nes *NESState) String() string {
-    return fmt.Sprintf("NESState{%s}", nes.CPU)
+    return fmt.Sprintf("{CPU:%s Mapper:%s}", nes.CPU, nes.mapper)
 }

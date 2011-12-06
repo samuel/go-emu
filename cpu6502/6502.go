@@ -93,12 +93,12 @@ func (cpu *CPU6502) FlagString() string {
 }
 
 func (cpu *CPU6502) String() string {
-    return fmt.Sprintf("CPU6502{PC:%04x SP:%02x A:%02x X:%02x Y:%02x P:%02x:%s}",
+    return fmt.Sprintf("{PC:%04x SP:%02x A:%02x X:%02x Y:%02x P:%02x:%s}",
         cpu.PC, cpu.SP, cpu.A, cpu.X, cpu.Y, cpu.GetP(), cpu.FlagString())
 }
 
-func (cpu *CPU6502) ReadByte(address uint16) byte {
-    return cpu.memory.ReadByte(address)
+func (cpu *CPU6502) ReadByte(address uint16, peek bool) byte {
+    return cpu.memory.ReadByte(address, peek)
 }
 
 func (cpu *CPU6502) ReadOpcode() (OpcodeSpec, uint16) {
@@ -112,7 +112,7 @@ func (cpu *CPU6502) PushByte(value byte) {
 
 func (cpu *CPU6502) PopByte() byte {
     cpu.SP++
-    return cpu.memory.ReadByte(0x100 + uint16(cpu.SP))
+    return cpu.memory.ReadByte(0x100 + uint16(cpu.SP), false)
 }
 
 func (cpu *CPU6502) PushAddress(addr uint16) {
@@ -149,57 +149,57 @@ func (cpu *CPU6502) Step() (int, os.Error) {
         value = byte(opval)
     case AMAbsolute, AMZeroPage:
         addr = opval
-        value = cpu.memory.ReadByte(addr)
+        value = cpu.memory.ReadByte(addr, !opcode.Instruction.Read)
     case AMZeroPageX:
         addr = (opval + uint16(cpu.X)) & 0x00ff
-        value = cpu.memory.ReadByte(addr)
+        value = cpu.memory.ReadByte(addr, !opcode.Instruction.Read)
     case AMAbsoluteX:
         addr = opval + uint16(cpu.X)
         if page_cycles && addr & 0xff00 != opval & 0xff00 {
             cycles += 1
         }
-        value = cpu.memory.ReadByte(addr)
+        value = cpu.memory.ReadByte(addr, !opcode.Instruction.Read)
     case AMZeroPageY:
         addr = (opval + uint16(cpu.Y)) & 0x00ff
-        value = cpu.memory.ReadByte(addr)
+        value = cpu.memory.ReadByte(addr, !opcode.Instruction.Read)
     case AMAbsoluteY:
         addr = opval + uint16(cpu.Y)
         if page_cycles && addr & 0xff00 != opval & 0xff00 {
             cycles += 1
         }
-        value = cpu.memory.ReadByte(addr)
+        value = cpu.memory.ReadByte(addr, !opcode.Instruction.Read)
     case AMRelative:
         addr = cpu.PC + uint16(int8(opval))
     case AMIndirectX:
         addr = uint16(byte(opval) + cpu.X)
-        addr = (uint16(cpu.memory.ReadByte(addr)) |
-                (uint16(cpu.memory.ReadByte((addr + 1) & 0xff + (addr & 0xff00))) << 8))
-        value = cpu.memory.ReadByte(addr)
+        addr = (uint16(cpu.memory.ReadByte(addr, false)) |
+                (uint16(cpu.memory.ReadByte((addr + 1) & 0xff + (addr & 0xff00), false)) << 8))
+        value = cpu.memory.ReadByte(addr, !opcode.Instruction.Read)
     case AMIndirectY:
-        addrt := (uint16(cpu.memory.ReadByte(opval)) |
-                  (uint16(cpu.memory.ReadByte((opval + 1) & 0xff + (opval & 0xff00))) << 8))
+        addrt := (uint16(cpu.memory.ReadByte(opval, false)) |
+                  (uint16(cpu.memory.ReadByte((opval + 1) & 0xff + (opval & 0xff00), false)) << 8))
         addr = addrt + uint16(cpu.Y)
         if page_cycles && addrt & 0xff00 != addr & 0xff00 {
             // page crossing
             cycles += 1
         }
-        value = cpu.memory.ReadByte(addr)
+        value = cpu.memory.ReadByte(addr, !opcode.Instruction.Read)
     case AMIndirect:
         // There's a bug in the 6502 where Indirect addressing doesn't advance pages
         // 02ff -> bytes 02ff & 0200 rather than 02ff 0300
-        addr = (uint16(cpu.memory.ReadByte(opval)) |
-                (uint16(cpu.memory.ReadByte((opval + 1) & 0xff + (opval & 0xff00))) << 8))
+        addr = (uint16(cpu.memory.ReadByte(opval, false)) |
+                (uint16(cpu.memory.ReadByte((opval + 1) & 0xff + (opval & 0xff00), false)) << 8))
     }
-    
+
     jump := false // jump to 'addr' and account for clock
 
-    switch opcode.Instruction {
+    switch opcode.Instruction.Num {
     default:
-        panic("Unhandled opcode "+opcode.InstructionName)
-    case I_AAX: // undocumented
+        panic("Unhandled opcode "+opcode.Instruction.Name)
+    case I_AAX.Num: // undocumented
         value = cpu.X & cpu.A
         cpu.memory.WriteByte(addr, value)
-    case I_ADC:
+    case I_ADC.Num:
         res := uint16(value) + uint16(cpu.A)
         if cpu.CarryFlag { res++ }
         cpu.ZeroFlag = (res & 0xff) == 0
@@ -215,11 +215,11 @@ func (cpu *CPU6502) Step() (int, os.Error) {
         cpu.OverflowFlag = !((cpu.A ^ value) & 0x80 != 0) && ((uint16(cpu.A) ^ res) & 0x80 != 0)
         cpu.CarryFlag = res & 0x100 != 0
         cpu.A = byte(res & 0xff)
-    case I_AND:
+    case I_AND.Num:
         cpu.A &= value
         cpu.SignFlag = cpu.A & 0x80 > 0
         cpu.ZeroFlag = cpu.A == 0
-    case I_ASL:
+    case I_ASL.Num:
         cpu.CarryFlag = value & 0x80 != 0
         value = value << 1
         cpu.SignFlag = value & 0x80 != 0
@@ -229,85 +229,85 @@ func (cpu *CPU6502) Step() (int, os.Error) {
         } else {
             cpu.memory.WriteByte(addr, value)
         }
-    case I_BCC:
+    case I_BCC.Num:
         if !cpu.CarryFlag { jump = true }
-    case I_BCS:
+    case I_BCS.Num:
         if cpu.CarryFlag { jump = true }
-    case I_BEQ:
+    case I_BEQ.Num:
         if cpu.ZeroFlag { jump = true }
-    case I_BIT:
+    case I_BIT.Num:
         cpu.SignFlag = value & 0x80 != 0
         cpu.OverflowFlag = value & 0x40 != 0
         cpu.ZeroFlag = value & cpu.A == 0
-    case I_BMI:
+    case I_BMI.Num:
         if cpu.SignFlag { jump = true }
-    case I_BPL:
+    case I_BPL.Num:
         if !cpu.SignFlag { jump = true }
-    case I_BNE:
+    case I_BNE.Num:
         if !cpu.ZeroFlag { jump = true }
-    case I_BVC:
+    case I_BVC.Num:
         if !cpu.OverflowFlag { jump = true }
-    case I_BVS:
+    case I_BVS.Num:
         if cpu.OverflowFlag { jump = true }
-    case I_CLC:
+    case I_CLC.Num:
         cpu.CarryFlag = false
-    case I_CLD:
+    case I_CLD.Num:
         cpu.DecimalFlag = false
-    case I_CLV:
+    case I_CLV.Num:
         cpu.OverflowFlag = false
-    case I_CMP:
+    case I_CMP.Num:
         res := cpu.A - value
         cpu.CarryFlag = cpu.A >= value
         cpu.SignFlag = res & 0x80 != 0
         cpu.ZeroFlag = res == 0
-    case I_CPX:
+    case I_CPX.Num:
         res := cpu.X - value
         cpu.CarryFlag = cpu.X >= value
         cpu.SignFlag = res & 0x80 != 0
         cpu.ZeroFlag = res == 0
-    case I_CPY:
+    case I_CPY.Num:
         res := cpu.Y - value
         cpu.CarryFlag = cpu.Y >= value
         cpu.SignFlag = res & 0x80 != 0
         cpu.ZeroFlag = res == 0
-    case I_DCP: // undocumented - equivalent to DEC, CMP
+    case I_DCP.Num: // undocumented - equivalent to DEC, CMP
         value--
         cpu.memory.WriteByte(addr, value)
         res := cpu.A - value
         cpu.CarryFlag = cpu.A >= value
         cpu.SignFlag = res & 0x80 != 0
         cpu.ZeroFlag = res == 0
-    case I_DEC:
+    case I_DEC.Num:
         value--
         cpu.SignFlag = value & 0x80 != 0
         cpu.ZeroFlag = value == 0
         cpu.memory.WriteByte(addr, value)
-    case I_DEX:
+    case I_DEX.Num:
         cpu.X -= 1
         cpu.SignFlag = cpu.X & 0x80 != 0
         cpu.ZeroFlag = cpu.X == 0
-    case I_DEY:
+    case I_DEY.Num:
         cpu.Y -= 1
         cpu.SignFlag = cpu.Y & 0x80 != 0
         cpu.ZeroFlag = cpu.Y == 0
-    case I_EOR:
+    case I_EOR.Num:
         cpu.A ^= value
         cpu.SignFlag = cpu.A & 0x80 != 0
         cpu.ZeroFlag = cpu.A == 0
-    case I_INC:
+    case I_INC.Num:
         value++
         cpu.SignFlag = value & 0x80 != 0
         cpu.ZeroFlag = value == 0
         cpu.memory.WriteByte(addr, value)
-    case I_INX:
+    case I_INX.Num:
         cpu.X += 1
         cpu.SignFlag = cpu.X & 0x80 != 0
         cpu.ZeroFlag = cpu.X == 0
-    case I_INY:
+    case I_INY.Num:
         cpu.Y += 1
         cpu.SignFlag = cpu.Y & 0x80 != 0
         cpu.ZeroFlag = cpu.Y == 0
-    case I_ISC: // undocumented - equivalent to INC, SBC
+    case I_ISC.Num: // undocumented - equivalent to INC, SBC
         value++
         cpu.memory.WriteByte(addr, value)
         temp := uint16(cpu.A) - uint16(value)
@@ -332,29 +332,29 @@ func (cpu *CPU6502) Step() (int, os.Error) {
         }
         cpu.CarryFlag = temp < 0x100
         cpu.A = byte(temp & 0xff)
-    case I_JMP:
+    case I_JMP.Num:
         cpu.PC = addr
-    case I_JSR:
+    case I_JSR.Num:
         cpu.PushAddress(cpu.PC-1)
         cpu.PC = addr
-    case I_LAX: // undocumented
+    case I_LAX.Num: // undocumented
         cpu.A = value
         cpu.X = value
         cpu.SignFlag = cpu.A & 0x80 != 0
         cpu.ZeroFlag = cpu.A == 0
-    case I_LDA:
+    case I_LDA.Num:
         cpu.A = value
         cpu.SignFlag = cpu.A & 0x80 != 0
         cpu.ZeroFlag = cpu.A == 0
-    case I_LDX:
+    case I_LDX.Num:
         cpu.X = value
         cpu.SignFlag = cpu.X & 0x80 != 0
         cpu.ZeroFlag = cpu.X == 0
-    case I_LDY:
+    case I_LDY.Num:
         cpu.Y = value
         cpu.SignFlag = cpu.Y & 0x80 != 0
         cpu.ZeroFlag = cpu.Y == 0
-    case I_LSR:
+    case I_LSR.Num:
         cpu.CarryFlag = value & 0x01 > 0
         value >>= 1
         cpu.SignFlag = value & 0x80 != 0
@@ -364,23 +364,23 @@ func (cpu *CPU6502) Step() (int, os.Error) {
         } else {
             cpu.memory.WriteByte(addr, value)
         }
-    case I_NOP, I_DOP, I_TOP, I_NP2:
+    case I_NOP.Num, I_DOP.Num, I_TOP.Num, I_NP2.Num:
         // no-op
-    case I_ORA:
+    case I_ORA.Num:
         cpu.A |= value
         cpu.SignFlag = cpu.A & 0x80 != 0
         cpu.ZeroFlag = cpu.A == 0
-    case I_PHA:
+    case I_PHA.Num:
         cpu.PushByte(cpu.A)
-    case I_PHP:
+    case I_PHP.Num:
         cpu.PushByte(cpu.GetP() | FLAG_B) // B flag always pushed as 1
-    case I_PLA:
+    case I_PLA.Num:
         cpu.A = cpu.PopByte()
         cpu.SignFlag = cpu.A & 0x80 != 0
         cpu.ZeroFlag = cpu.A == 0
-    case I_PLP:
+    case I_PLP.Num:
         cpu.SetP(cpu.PopByte() & ^byte(FLAG_B)) // B flag discarded
-    case I_RLA: // undocumented - equivalent to ROL, AND
+    case I_RLA.Num: // undocumented - equivalent to ROL, AND
         var carry byte = 0
         if cpu.CarryFlag {
             carry = 1
@@ -395,10 +395,10 @@ func (cpu *CPU6502) Step() (int, os.Error) {
         cpu.A &= value
         cpu.SignFlag = cpu.A & 0x80 > 0
         cpu.ZeroFlag = cpu.A == 0
-    case I_RTI:
+    case I_RTI.Num:
         cpu.SetP(cpu.PopByte())
         cpu.PC = cpu.PopAddress()
-    case I_ROL:
+    case I_ROL.Num:
         var carry byte = 0
         if cpu.CarryFlag {
             carry = 1
@@ -412,7 +412,7 @@ func (cpu *CPU6502) Step() (int, os.Error) {
         } else {
             cpu.memory.WriteByte(addr, value)
         }
-    case I_ROR:
+    case I_ROR.Num:
         var carry byte = 0
         if cpu.CarryFlag {
             carry = 0x80
@@ -426,7 +426,7 @@ func (cpu *CPU6502) Step() (int, os.Error) {
         } else {
             cpu.memory.WriteByte(addr, value)
         }
-    case I_RRA: // undocumented - equivalent to ROR, ADC
+    case I_RRA.Num: // undocumented - equivalent to ROR, ADC
         var carry byte = 0
         if cpu.CarryFlag {
             carry = 0x80
@@ -453,9 +453,9 @@ func (cpu *CPU6502) Step() (int, os.Error) {
         cpu.OverflowFlag = !((cpu.A ^ value) & 0x80 != 0) && ((uint16(cpu.A) ^ res) & 0x80 != 0)
         cpu.CarryFlag = res & 0x100 != 0
         cpu.A = byte(res & 0xff)
-    case I_RTS:
+    case I_RTS.Num:
         cpu.PC = cpu.PopAddress() + 1
-    case I_SBC:
+    case I_SBC.Num:
         temp := uint16(cpu.A) - uint16(value)
         if !cpu.CarryFlag {
             temp--
@@ -478,13 +478,13 @@ func (cpu *CPU6502) Step() (int, os.Error) {
         }
         cpu.CarryFlag = temp < 0x100
         cpu.A = byte(temp & 0xff)
-    case I_SEC:
+    case I_SEC.Num:
         cpu.CarryFlag = true
-    case I_SED:
+    case I_SED.Num:
         cpu.DecimalFlag = true
-    case I_SEI:
+    case I_SEI.Num:
         cpu.InterruptsDisabledFlag = true
-    case I_SLO: // undocumented - equivalent to ASL, ORA
+    case I_SLO.Num: // undocumented - equivalent to ASL, ORA
         cpu.CarryFlag = value & 0x80 != 0
         value = value << 1
         if opcode.AddressingMode == AMAccumulator {
@@ -496,7 +496,7 @@ func (cpu *CPU6502) Step() (int, os.Error) {
         cpu.A |= value
         cpu.SignFlag = cpu.A & 0x80 != 0
         cpu.ZeroFlag = cpu.A == 0
-    case I_SRE: // undocumented - equivalent to LSR, EOR
+    case I_SRE.Num: // undocumented - equivalent to LSR, EOR
         cpu.CarryFlag = value & 0x01 > 0
         value >>= 1
         if opcode.AddressingMode == AMAccumulator {
@@ -507,31 +507,31 @@ func (cpu *CPU6502) Step() (int, os.Error) {
         cpu.A ^= value
         cpu.SignFlag = cpu.A & 0x80 != 0
         cpu.ZeroFlag = cpu.A == 0
-    case I_STA:
+    case I_STA.Num:
         cpu.memory.WriteByte(addr, cpu.A)
-    case I_STX:
+    case I_STX.Num:
         cpu.memory.WriteByte(addr, cpu.X)
-    case I_STY:
+    case I_STY.Num:
         cpu.memory.WriteByte(addr, cpu.Y)
-    case I_TAX:
+    case I_TAX.Num:
         cpu.X = cpu.A
         cpu.SignFlag = cpu.X & 0x80 != 0
         cpu.ZeroFlag = cpu.X == 0
-    case I_TAY:
+    case I_TAY.Num:
         cpu.Y = cpu.A
         cpu.SignFlag = cpu.Y & 0x80 != 0
         cpu.ZeroFlag = cpu.Y == 0
-    case I_TSX:
+    case I_TSX.Num:
         cpu.X = cpu.SP
         cpu.SignFlag = cpu.X & 0x80 != 0
         cpu.ZeroFlag = cpu.X == 0
-    case I_TXA:
+    case I_TXA.Num:
         cpu.A = cpu.X
         cpu.SignFlag = cpu.A & 0x80 != 0
         cpu.ZeroFlag = cpu.A == 0
-    case I_TXS:
+    case I_TXS.Num:
         cpu.SP = cpu.X
-    case I_TYA:
+    case I_TYA.Num:
         cpu.A = cpu.Y
         cpu.SignFlag = cpu.A & 0x80 != 0
         cpu.ZeroFlag = cpu.A == 0

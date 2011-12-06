@@ -123,6 +123,10 @@ type MapperMMC3 struct {
     prg_banks []int
 }
 
+func (m *MapperMMC3) String() string {
+    return "{Type:MMC3}"
+}
+
 func NewMapperMMC3(cart *Cart) *MapperMMC3 {
     num_pages := len(cart.PRGPages) / 8192
     return &MapperMMC3{cart:cart, prg_banks:[]int{0, 1, num_pages-2, num_pages-1}}
@@ -131,7 +135,7 @@ func NewMapperMMC3(cart *Cart) *MapperMMC3 {
     // }
 }
 
-func (m *MapperMMC3) ReadByte(address uint16) byte {
+func (m *MapperMMC3) ReadByte(address uint16, peek bool) byte {
     addr := m.translateAddress(address)
     return m.cart.PRGPages[addr]
 }

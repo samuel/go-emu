@@ -8,11 +8,15 @@ type MapperNROM struct {
     cart *Cart
 }
 
+func (m* MapperNROM) String() string {
+    return "{Type:NROM}"
+}
+
 func NewMapperNROM(cart *Cart) *MapperNROM {
     return &MapperNROM{cart:cart}
 }
 
-func (m *MapperNROM) ReadByte(address uint16) byte {
+func (m *MapperNROM) ReadByte(address uint16, peek bool) byte {
     addr := m.translateAddress(address)
     return m.cart.PRGPages[addr]
 }
