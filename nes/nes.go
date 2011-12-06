@@ -125,9 +125,9 @@ func (nes *NESState) WriteByte(address uint16, value byte) {
     } else if address >= 0x6000 && address <= 0x7fff {
         if nes.testing {
             if address == 0x6000 {
-                fmt.Printf("%.2x\n", value)
+                // fmt.Printf("%.2x\n", value)
                 if value < 0x80 {
-                    os.Exit(1)
+                    os.Exit(int(value))
                 }
             } else if address >= 0x6004 {
                 fmt.Printf("%c", value)

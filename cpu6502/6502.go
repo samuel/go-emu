@@ -139,10 +139,12 @@ func (cpu *CPU6502) Step() (int, os.Error) {
     var addr uint16
     var value byte
     var cycles int = opcode.Cycles
-    page_cycles := false
     if cycles < 0 {
         cycles = -cycles
-        page_cycles = true
+    }
+    cycles2 := opcode.Size
+    if cycles2 < 2 {
+        cycles2 = 2
     }
     switch opcode.AddressingMode {
     default:
@@ -157,41 +159,78 @@ func (cpu *CPU6502) Step() (int, os.Error) {
         value = byte(opval)
     case AMAbsolute, AMZeroPage:
         addr = opval
-        value = cpu.memory.ReadByte(addr, !opcode.Instruction.Read)
-    case AMZeroPageX:
-        addr = (opval + uint16(cpu.X)) & 0x00ff
-        value = cpu.memory.ReadByte(addr, !opcode.Instruction.Read)
-    case AMAbsoluteX:
-        addr = opval + uint16(cpu.X)
-        if page_cycles && addr & 0xff00 != opval & 0xff00 {
-            cycles += 1
+        if opcode.Instruction.Read {
+            cycles2++
+            value = cpu.memory.ReadByte(addr, false)
+            if opcode.Instruction.Write {
+                // For read-modify-write instructions the value gets written twice
+                cpu.memory.WriteByte(addr, value)
+                cycles2 += 2
+            }
+        } else if opcode.Instruction.Write {
+            cycles2++
         }
-        value = cpu.memory.ReadByte(addr, !opcode.Instruction.Read)
-    case AMZeroPageY:
-        addr = (opval + uint16(cpu.Y)) & 0x00ff
-        value = cpu.memory.ReadByte(addr, !opcode.Instruction.Read)
-    case AMAbsoluteY:
-        addr = opval + uint16(cpu.Y)
-        if page_cycles && addr & 0xff00 != opval & 0xff00 {
-            cycles += 1
+    case AMZeroPageX, AMZeroPageY:
+        cpu.memory.ReadByte(opval, false) // dummy read
+        if opcode.AddressingMode == AMZeroPageX {
+            addr = (opval + uint16(cpu.X)) & 0x00ff
+        } else {
+            addr = (opval + uint16(cpu.Y)) & 0x00ff
         }
-        value = cpu.memory.ReadByte(addr, !opcode.Instruction.Read)
+        cycles2 += 2
+        if opcode.Instruction.Read {
+            value = cpu.memory.ReadByte(addr, false)
+            if opcode.Instruction.Write {
+                // For read-modify-write instructions the value gets written twice
+                cpu.memory.WriteByte(addr, value)
+                cycles2 += 2
+            }
+        }
+    case AMAbsoluteX, AMAbsoluteY, AMIndirectY:
+        addrt := opval
+        if opcode.AddressingMode == AMAbsoluteX {
+            addr = addrt + uint16(cpu.X)
+        } else if opcode.AddressingMode == AMAbsoluteY {
+            addr = addrt + uint16(cpu.Y)
+        } else {
+            addrt = cpu.ReadUI16(opval, false)
+            addr = addrt + uint16(cpu.Y)
+            cycles2 += 2
+        }
+        value = cpu.memory.ReadByte(addrt & 0xff00 | addr & 0x00ff, false)
+        cycles2++
+        if opcode.Instruction.Read {
+            if opcode.Instruction.Write {
+                // For read-modify-write instructions the value gets written twice
+                value = cpu.memory.ReadByte(addr, false)
+                cpu.memory.WriteByte(addr, value)
+                cycles2 += 3
+            } else if addr & 0xff00 != addrt & 0xff00 {
+                value = cpu.memory.ReadByte(addr, false)
+                cycles++
+                cycles2++
+            }
+        } else if (opcode.Instruction.Write) {
+            cycles2++
+        }
     case AMRelative:
         addr = cpu.PC + uint16(int8(opval))
     case AMIndirectX:
+        cpu.memory.ReadByte(opval, false) // dummy read
         addr = uint16(byte(opval) + cpu.X)
         addr = cpu.ReadUI16(addr, false)
-        value = cpu.memory.ReadByte(addr, !opcode.Instruction.Read)
-    case AMIndirectY:
-        addrt := cpu.ReadUI16(opval, false)
-        addr = addrt + uint16(cpu.Y)
-        if page_cycles && addrt & 0xff00 != addr & 0xff00 {
-            // page crossing
-            cycles += 1
+        cycles2 += 4
+        if opcode.Instruction.Read {
+            value = cpu.memory.ReadByte(addr, false)
+            if opcode.Instruction.Write {
+                // For read-modify-write instructions the value gets written twice
+                cpu.memory.WriteByte(addr, value)
+                cycles2 += 2
+            }
         }
-        value = cpu.memory.ReadByte(addr, !opcode.Instruction.Read)
     case AMIndirect:
         addr = cpu.ReadUI16(opval, false)
+        cycles2 += 2
     }
 
     jump := false // jump to 'addr' and account for clock
@@ -254,6 +293,7 @@ func (cpu *CPU6502) Step() (int, os.Error) {
         cpu.PushByte(cpu.GetP())
         cpu.InterruptsDisabledFlag = true
         cpu.PC = cpu.ReadUI16(0xfffe, false)
+        cycles2 += 5
     case I_BVC.Num:
         if !cpu.OverflowFlag { jump = true }
     case I_BVS.Num:
@@ -346,6 +386,7 @@ func (cpu *CPU6502) Step() (int, os.Error) {
     case I_JSR.Num:
         cpu.PushAddress(cpu.PC-1)
         cpu.PC = addr
+        cycles2 += 3
     case I_LAX.Num: // undocumented
         cpu.A = value
         cpu.X = value
@@ -381,14 +422,18 @@ func (cpu *CPU6502) Step() (int, os.Error) {
         cpu.ZeroFlag = cpu.A == 0
     case I_PHA.Num:
         cpu.PushByte(cpu.A)
+        cycles2++
     case I_PHP.Num:
         cpu.PushByte(cpu.GetP() | FLAG_B) // B flag always pushed as 1
+        cycles2++
     case I_PLA.Num:
         cpu.A = cpu.PopByte()
         cpu.SignFlag = cpu.A & 0x80 != 0
         cpu.ZeroFlag = cpu.A == 0
+        cycles2 += 2
     case I_PLP.Num:
         cpu.SetP(cpu.PopByte() & ^byte(FLAG_B)) // B flag discarded
+        cycles2 += 2
     case I_RLA.Num: // undocumented - equivalent to ROL, AND
         var carry byte = 0
         if cpu.CarryFlag {
@@ -407,6 +452,7 @@ func (cpu *CPU6502) Step() (int, os.Error) {
     case I_RTI.Num:
         cpu.SetP(cpu.PopByte())
         cpu.PC = cpu.PopAddress()
+        cycles2 += 4
     case I_ROL.Num:
         var carry byte = 0
         if cpu.CarryFlag {
@@ -464,6 +510,7 @@ func (cpu *CPU6502) Step() (int, os.Error) {
         cpu.A = byte(res & 0xff)
     case I_RTS.Num:
         cpu.PC = cpu.PopAddress() + 1
+        cycles2 += 4
     case I_SBC.Num:
         temp := uint16(cpu.A) - uint16(value)
         if !cpu.CarryFlag {
@@ -544,6 +591,11 @@ func (cpu *CPU6502) Step() (int, os.Error) {
         cpu.A = cpu.Y
         cpu.SignFlag = cpu.A & 0x80 != 0
         cpu.ZeroFlag = cpu.A == 0
+    }
+
+    if cycles2 != cycles {
+        fmt.Printf("%s am:%d expected:%d was:%d\n", opcode.Instruction.Name, opcode.AddressingMode, cycles, cycles2)
+        os.Exit(1)
     }
 
     if jump {
