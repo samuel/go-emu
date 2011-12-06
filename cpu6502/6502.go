@@ -39,10 +39,12 @@ type CPU6502 struct {
     OverflowFlag bool
     SignFlag bool
 
-    PC uint16 // program counter (PCL=low, PCH=high)
-    SP uint8 // stack pointer
+    PC uint16   // program counter (PCL=low, PCH=high)
+    SP uint8    // stack pointer
 
     Cycles uint64
+
+    NMICounter int  // steps till NMI
 
     memory MemoryAccess
 }
@@ -133,6 +135,18 @@ func (cpu *CPU6502) PopAddress() uint16 {
 }
 
 func (cpu *CPU6502) Step() (int, os.Error) {
+    if cpu.NMICounter > 0 {
+        cpu.NMICounter--
+        if cpu.NMICounter == 0 {
+            cpu.PushAddress(cpu.PC)
+            cpu.SoftwareInterruptFlag = false
+            cpu.PushByte(cpu.GetP())
+            cpu.PC = cpu.ReadUI16(IV_NMI, false)
+            cpu.Cycles += uint64(5)
+            return 5, nil
+        }
+    }
+
     opcode, opval := cpu.ReadOpcode()
     cpu.PC += uint16(opcode.Size)
 
@@ -292,7 +306,7 @@ func (cpu *CPU6502) Step() (int, os.Error) {
         cpu.SoftwareInterruptFlag = true
         cpu.PushByte(cpu.GetP())
         cpu.InterruptsDisabledFlag = true
-        cpu.PC = cpu.ReadUI16(0xfffe, false)
+        cpu.PC = cpu.ReadUI16(IV_IRQ, false)
         cycles2 += 5
     case I_BVC.Num:
         if !cpu.OverflowFlag { jump = true }

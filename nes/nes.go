@@ -12,6 +12,15 @@ const (
     PIXELS_PER_SCANLINE = 1364 //341
     CPU_CYCLES_PER_VIDEO_CYCLE = 12
 
+    // Register 2000h
+    BIT_NMI_ENABLE      = 0x80  // (0=Disabled, 1=Enabled)
+    BIT_PPU_SLAVE       = 0x40  // (0=Master, 1=Slave) (Not used in NES)
+    BIT_8x16_SPRITE     = 0x20  // (0=8x8, 1=8x16)
+    BIT_PAT_TBL_ADDR_BG = 0x10  // (0=VRAM 0000h, 1=VRAM 1000h) - Pattern Table Address Background 
+    BIT_PAT_TBL_ADDR_SP = 0x08  // (0=VRAM 0000h, 1=VRAM 1000h) - Pattern Table Address 8x8 Sprites
+    BIT_VRAM_ADDR_INC   = 0x04  // (0=Increment by 1, 1=Increment by 32) - Port 2007h VRAM Address Increment
+    BIT_NM_TBL_SCR_ADDR = 0x03  // (0-3=VRAM 2000h,2400h,2800h,2C00h) - Name Table Scroll Address
+
     // Register 2002h
     BIT_VBLANK = 0x80
 )
@@ -40,6 +49,11 @@ type NESState struct {
     mapper Mapper
     CPU *cpu6502.CPU6502
 
+    ppuNMIEnabled bool
+
+    apuFrameIRQEnabled bool
+    apuFrames int // NTSC=4, PAL=5
+
     testing bool
 }
 
@@ -49,7 +63,9 @@ func NewNESState(cart *Cart) (*NESState, os.Error) {
         return nil, err
     }
 
-    state := &NESState{mapper:mapper} //, Scanline:241}
+    state := &NESState{
+        mapper: mapper,
+        apuFrameIRQEnabled: false}
 
     // TODO: Set workingRam to 0xFF except 0x0008=0xf7, 0x0009=0xef, 0x000a=0xdf, 0x000f=0xbf
 
@@ -62,10 +78,6 @@ func NewNESState(cart *Cart) (*NESState, os.Error) {
     return state, nil
 }
 
-// func (nes *NESState) GetScanline() int {
-//     return (nes.CPU.Cycles * 3) / 341 - 21
-// }
-
 func (nes *NESState) Step() {
     cycles, _ := nes.CPU.Step()
     nes.PPUCycle += CPU_CYCLES_PER_VIDEO_CYCLE*cycles
@@ -75,8 +87,11 @@ func (nes *NESState) Step() {
         if nes.Scanline >= SCANLINES {
             nes.Scanline -= SCANLINES
             nes.VBlank = false
-        } else if nes.Scanline == SCANLINE_VBLANK {
+        } else if nes.Scanline == SCANLINE_VBLANK /*&& nes.PPUCycle != 0*/ {
             nes.VBlank = true
+            if nes.ppuNMIEnabled {
+                nes.CPU.NMICounter = 2
+            }
         }
     }
 }
@@ -93,7 +108,9 @@ func (nes *NESState) ReadByte(address uint16, peek bool) byte {
             // 5 = lost sprites (1=more than 8 sprites in 1 scanline)
             // 4-0 = unused
             var val byte = 0
-            if nes.VBlank { val |= BIT_VBLANK }
+            if nes.VBlank {
+                val |= BIT_VBLANK
+            }
             if !peek {
                 nes.VBlank = false
             }
@@ -103,6 +120,10 @@ func (nes *NESState) ReadByte(address uint16, peek bool) byte {
     }
     if address >= 0x4000 && address <= 0x4017 {
         return nes.apuRegisters[address - 0x4000]
+    }
+    if address >= 0x4018 && address <= 0x40ff {
+        // Cartridge Expansion Area - never used?
+        return 0
     }
     if address >= 0x6000 && address <= 0x7fff {
         return nes.cartSRAM[address - 0x6000]
@@ -119,9 +140,22 @@ func (nes *NESState) WriteByte(address uint16, value byte) {
     } else if address >= 0x0000 && address <= 0x07ff {
         nes.workingRam[address] = value
     } else if address >= 0x2000 && address <= 0x3fff {
-        nes.ppuRegisters[(address - 0x2000) & 7] = value
+        taddr := (address - 0x2000) & 7
+        if taddr == 0 {
+            if value & BIT_NMI_ENABLE > 0 && !nes.ppuNMIEnabled {
+                if nes.VBlank {
+                    nes.CPU.NMICounter = 2
+                }
+                nes.ppuNMIEnabled = true
+            } else {
+                nes.ppuNMIEnabled = false
+            }
+        }
+        nes.ppuRegisters[taddr] = value
     } else if address >= 0x4000 && address <= 0x4017 {
         nes.apuRegisters[address - 0x4000] = value
+    } else if address >= 0x4018 && address <= 0x40ff {
+        // Cartridge Expansion Area - never used?
     } else if address >= 0x6000 && address <= 0x7fff {
         if nes.testing {
             if address == 0x6000 {
