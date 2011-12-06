@@ -75,7 +75,7 @@ func (nes *NESState) Step() {
         if nes.Scanline >= SCANLINES {
             nes.Scanline -= SCANLINES
             nes.VBlank = false
-        } else if nes.Scanline >= SCANLINE_VBLANK {
+        } else if nes.Scanline == SCANLINE_VBLANK {
             nes.VBlank = true
         }
     }

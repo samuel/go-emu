@@ -38,7 +38,8 @@ func main() {
     fmt.Println(state)
     // state.CPU.PC = 0xc000
 
-    for i := 0; i < 10000000; i++ {
+    // for i := 0; i < 10000000; i++ {
+    for {
         if (*f_trace) {
             opcode, val := state.CPU.ReadOpcode()
             fmt.Printf("%.4X  %02X ", state.CPU.PC, opcode.Opcode)
@@ -96,7 +97,7 @@ func main() {
                 mem = fmt.Sprintf("@ %02X = %02X", addr, value)
             }
 
-            fmt.Printf("%s %-27s A:%02X X:%02X Y:%02X P:%02X SP:%02X CYC:%3d SL:%d %s\n",
+            fmt.Printf("%s %-27s A:%02X X:%02X Y:%02X P:%02X SP:%02X CYC:%4d SL:%d %s\n",
                 opcode.Instruction.Name, opcode.FormatArguments(val, state.CPU.PC+2) + " " + mem,
                 state.CPU.A, state.CPU.X, state.CPU.Y, state.CPU.GetP(), state.CPU.SP,
                 state.PPUCycle, state.Scanline, state.CPU.FlagString())
