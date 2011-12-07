@@ -1,4 +1,5 @@
 *.[68]
+*.swp
 6.out
 _testmain.go
 _obj

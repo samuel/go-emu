@@ -316,6 +316,8 @@ func (cpu *CPU6502) Step() (int, os.Error) {
         cpu.CarryFlag = false
     case I_CLD.Num:
         cpu.DecimalFlag = false
+    case I_CLI.Num:
+        cpu.InterruptsDisabledFlag = false
     case I_CLV.Num:
         cpu.OverflowFlag = false
     case I_CMP.Num:

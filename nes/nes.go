@@ -7,6 +7,10 @@ import (
 )
 
 const (
+    NTSC_SYSTEM_CLOCK      = 21477270 // Hz
+    NTSC_CPU_CLOCK_DIVIDER = 12
+    NTSC_CPU_CLOCK         = NTSC_SYSTEM_CLOCK / NTSC_CPU_CLOCK_DIVIDER
+
     SCANLINES = 262
     SCANLINE_VBLANK = 240 //243
     PIXELS_PER_SCANLINE = 1364 //341
@@ -25,8 +29,6 @@ const (
     BIT_VBLANK = 0x80
 )
 
-const CPU_RESET_VECTOR = 0xFFFC
-
 // CPU Memory Map (16bit buswidth, 0-FFFFh)
 //   0000h-07FFh   Internal 2K Work RAM (mirrored to 800h-1FFFh)
 //   2000h-2007h   Internal PPU Registers (mirrored to 2008h-3FFFh)
@@ -42,17 +44,14 @@ type NESState struct {
     workingRam [2048]byte   // 0000h-07FFh   Internal 2K Work RAM (mirrored to 800h-1FFFh)
     cartSRAM [8192]byte     // 6000h-7FFFh   Cartridge SRAM Area 8K
     ppuRegisters [8]byte    // 2000h-2007h (mirrored to 2008h-3fffh)
-    apuRegisters [32]byte   // 4000h-4017h
     PPUCycle int
     Scanline int
     VBlank bool
     mapper Mapper
     CPU *cpu6502.CPU6502
+    apu *APUState
 
     ppuNMIEnabled bool
-
-    apuFrameIRQEnabled bool
-    apuFrames int // NTSC=4, PAL=5
 
     testing bool
 }
@@ -63,14 +62,19 @@ func NewNESState(cart *Cart) (*NESState, os.Error) {
         return nil, err
     }
 
+    apu, err := NewAPUState()
+    if err != nil {
+        return nil, err
+    }
+
     state := &NESState{
         mapper: mapper,
-        apuFrameIRQEnabled: false}
+        apu: apu}
 
     // TODO: Set workingRam to 0xFF except 0x0008=0xf7, 0x0009=0xef, 0x000a=0xdf, 0x000f=0xbf
 
     state.CPU = cpu6502.NewCPU6502(state)
-    state.CPU.PC = uint16(state.ReadByte(CPU_RESET_VECTOR, false)) | (uint16(state.ReadByte(CPU_RESET_VECTOR+1, false)) << 8)
+    state.CPU.PC = uint16(state.ReadByte(cpu6502.IV_RESET, false)) | (uint16(state.ReadByte(cpu6502.IV_RESET+1, false)) << 8)
 
     // TODO
     state.testing = true
@@ -119,7 +123,7 @@ func (nes *NESState) ReadByte(address uint16, peek bool) byte {
         return nes.ppuRegisters[trans]
     }
     if address >= 0x4000 && address <= 0x4017 {
-        return nes.apuRegisters[address - 0x4000]
+        return nes.apu.ReadByte(address, peek)
     }
     if address >= 0x4018 && address <= 0x40ff {
         // Cartridge Expansion Area - never used?
@@ -153,7 +157,7 @@ func (nes *NESState) WriteByte(address uint16, value byte) {
         }
         nes.ppuRegisters[taddr] = value
     } else if address >= 0x4000 && address <= 0x4017 {
-        nes.apuRegisters[address - 0x4000] = value
+        nes.apu.WriteByte(address, value)
     } else if address >= 0x4018 && address <= 0x40ff {
         // Cartridge Expansion Area - never used?
     } else if address >= 0x6000 && address <= 0x7fff {
