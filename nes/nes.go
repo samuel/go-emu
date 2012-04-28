@@ -3,7 +3,7 @@ package nes
 import (
     "fmt"
     "os"
-    "cpu6502"
+    "github.com/samuel/go-nes/cpu6502"
 )
 
 const (
@@ -56,7 +56,7 @@ type NESState struct {
     testing bool
 }
 
-func NewNESState(cart *Cart) (*NESState, os.Error) {
+func NewNESState(cart *Cart) (*NESState, error) {
     mapper, err := NewMapper(cart)
     if err != nil {
         return nil, err

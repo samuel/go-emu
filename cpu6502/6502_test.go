@@ -25,7 +25,7 @@ func NewTestMemory(bytes []byte) *TestMemory {
     return &mem
 }
 
-func (m *TestMemory) ReadByte(addr uint16) byte {
+func (m *TestMemory) ReadByte(addr uint16, peek bool) byte {
     return m.bytes[addr]
 }
 

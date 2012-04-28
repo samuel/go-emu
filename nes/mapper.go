@@ -1,6 +1,6 @@
 package nes
 
-import "os"
+import "errors"
 
 const (
     MAPPER_NROM = 0
@@ -13,7 +13,7 @@ type Mapper interface {
     WriteByte(address uint16, value byte)
 }
 
-func NewMapper(cart *Cart) (Mapper, os.Error) {
+func NewMapper(cart *Cart) (Mapper, error) {
     switch cart.Mapper {
     case MAPPER_NROM:
         return NewMapperNROM(cart), nil
@@ -22,5 +22,5 @@ func NewMapper(cart *Cart) (Mapper, os.Error) {
     case MAPPER_MMC3:
         return NewMapperMMC3(cart), nil
     }
-    return nil, os.NewError("mapper not implemented")
+    return nil, errors.New("mapper not implemented")
 }

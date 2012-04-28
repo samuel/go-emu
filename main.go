@@ -5,8 +5,8 @@ import (
     "fmt"
     "log"
 
-    "cpu6502"
-    "nes"
+    "github.com/samuel/go-nes/cpu6502"
+    "github.com/samuel/go-nes/nes"
 )
 
 var (
@@ -25,14 +25,14 @@ func main() {
     parseFlags()
     cart, err := nes.LoadCartFile(*f_rom)
     if err != nil {
-        panic(err.String())
+        panic(err)
     }
 
     fmt.Println(cart)
 
     state, err := nes.NewNESState(cart)
     if err != nil {
-        panic(err.String())
+        panic(err)
     }
 
     fmt.Println(state)

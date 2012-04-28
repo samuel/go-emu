@@ -2,7 +2,6 @@ package nes
 
 import (
     "fmt"
-    "os"
 )
 
 const (
@@ -18,7 +17,7 @@ type APUState struct {
     FrameRate int // NTSC=4, PAL=5
 }
 
-func NewAPUState() (*APUState, os.Error) {
+func NewAPUState() (*APUState, error) {
     state := &APUState{
         FrameIRQEnabled: true,
         FrameRate: 4}

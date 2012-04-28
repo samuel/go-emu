@@ -134,7 +134,7 @@ func (cpu *CPU6502) PopAddress() uint16 {
     return uint16(cpu.PopByte()) | (uint16(cpu.PopByte()) << 8)
 }
 
-func (cpu *CPU6502) Step() (int, os.Error) {
+func (cpu *CPU6502) Step() (int, error) {
     if cpu.NMICounter > 0 {
         cpu.NMICounter--
         if cpu.NMICounter == 0 {

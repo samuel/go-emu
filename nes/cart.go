@@ -2,13 +2,14 @@ package nes
 
 import (
     "bytes"
+    "errors"
     "fmt"
     "io"
     "os"
 )
 
 var (
-    ErrInvalidCartFormat = os.NewError("invalid cart format")
+    ErrInvalidCartFormat = errors.New("invalid cart format")
     MapperNames = []string{"",
         "MMC1", "UNROM", "CNROM", "MMC3", "MMC5",                                     // 1-5
         "FFE F4xxx", "AOROM", "FFE F3xxx", "MMC2", "MMC4",                            // 6-10
@@ -46,7 +47,7 @@ type Cart struct {
     Title string
 }
 
-func LoadCart(r io.Reader) (*Cart, os.Error) {
+func LoadCart(r io.Reader) (*Cart, error) {
     var b [1024]byte
 
     // Read header
@@ -103,14 +104,14 @@ func LoadCart(r io.Reader) (*Cart, os.Error) {
     if err == nil {
         i := bytes.IndexByte(b[:128], 0)
         cart.Title = string(b[:i])
-    } else if err.String() != "EOF" {
+    } else if err.Error() != "EOF" {
         return cart, err
     }
 
     return cart, nil
 }
 
-func LoadCartFile(filename string) (*Cart, os.Error) {
+func LoadCartFile(filename string) (*Cart, error) {
     file, err := os.Open(filename)
     if err != nil {
         return nil, err
