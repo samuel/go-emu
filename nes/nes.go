@@ -139,11 +139,12 @@ func (nes *NESState) ReadByte(address uint16, peek bool) byte {
 }
 
 func (nes *NESState) WriteByte(address uint16, value byte) {
-	if address >= 0x8000 && address <= 0xffff {
+	switch {
+	case address >= 0x8000 && address <= 0xffff:
 		nes.mapper.WriteByte(address, value)
-	} else if address >= 0x0000 && address <= 0x07ff {
+	case address >= 0x0000 && address <= 0x07ff:
 		nes.workingRam[address] = value
-	} else if address >= 0x2000 && address <= 0x3fff {
+	case address >= 0x2000 && address <= 0x3fff:
 		taddr := (address - 0x2000) & 7
 		if taddr == 0 {
 			if value&BIT_NMI_ENABLE > 0 && !nes.ppuNMIEnabled {
@@ -156,11 +157,11 @@ func (nes *NESState) WriteByte(address uint16, value byte) {
 			}
 		}
 		nes.ppuRegisters[taddr] = value
-	} else if address >= 0x4000 && address <= 0x4017 {
+	case address >= 0x4000 && address <= 0x4017:
 		nes.apu.WriteByte(address, value)
-	} else if address >= 0x4018 && address <= 0x40ff {
+	case address >= 0x4018 && address <= 0x40ff:
 		// Cartridge Expansion Area - never used?
-	} else if address >= 0x6000 && address <= 0x7fff {
+	case address >= 0x6000 && address <= 0x7fff:
 		if nes.testing {
 			if address == 0x6000 {
 				// fmt.Printf("%.2x\n", value)
@@ -172,7 +173,7 @@ func (nes *NESState) WriteByte(address uint16, value byte) {
 			}
 		}
 		nes.cartSRAM[address-0x6000] = value
-	} else {
+	default:
 		panic("unknown address")
 	}
 }

@@ -244,11 +244,12 @@ func (cpu *CPU6502) Step() (int, error) {
 		}
 	case AMAbsoluteX, AMAbsoluteY, AMIndirectY:
 		addrt := opval
-		if opcode.AddressingMode == AMAbsoluteX {
+		switch {
+		case opcode.AddressingMode == AMAbsoluteX:
 			addr = addrt + uint16(cpu.X)
-		} else if opcode.AddressingMode == AMAbsoluteY {
+		case opcode.AddressingMode == AMAbsoluteY:
 			addr = addrt + uint16(cpu.Y)
-		} else {
+		default:
 			addrt = cpu.ReadUI16(opval, false)
 			addr = addrt + uint16(cpu.Y)
 			cycles2 += 2

@@ -43,11 +43,12 @@ func main() {
 		if *f_trace {
 			opcode, val := state.CPU.ReadOpcode()
 			fmt.Printf("%.4X  %02X ", state.CPU.PC, opcode.Opcode)
-			if opcode.Size == 2 {
+			switch opcode.Size {
+			case 2:
 				fmt.Printf("%02X    ", val&0xff)
-			} else if opcode.Size == 3 {
+			case 3:
 				fmt.Printf("%02X %02X ", val&0xff, val>>8)
-			} else {
+			default:
 				fmt.Printf("      ")
 			}
 
