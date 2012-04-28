@@ -119,35 +119,35 @@ Notes: - Two of the 8K ROM banks in the PRG area are switchable.
 */
 
 type MapperMMC3 struct {
-    cart *Cart
-    prg_banks []int
+	cart      *Cart
+	prg_banks []int
 }
 
 func (m *MapperMMC3) String() string {
-    return "{Type:MMC3}"
+	return "{Type:MMC3}"
 }
 
 func NewMapperMMC3(cart *Cart) *MapperMMC3 {
-    num_pages := len(cart.PRGPages) / 8192
-    return &MapperMMC3{cart:cart, prg_banks:[]int{0, 1, num_pages-2, num_pages-1}}
-    // for o := 0, 0; o < len(cart.PRGPages); o += 8192 {
-    //     mapper.prg_banks = append(mapper.prg_banks, cart.PRGPages[o:o+8192])
-    // }
+	num_pages := len(cart.PRGPages) / 8192
+	return &MapperMMC3{cart: cart, prg_banks: []int{0, 1, num_pages - 2, num_pages - 1}}
+	// for o := 0, 0; o < len(cart.PRGPages); o += 8192 {
+	//     mapper.prg_banks = append(mapper.prg_banks, cart.PRGPages[o:o+8192])
+	// }
 }
 
 func (m *MapperMMC3) ReadByte(address uint16, peek bool) byte {
-    addr := m.translateAddress(address)
-    return m.cart.PRGPages[addr]
+	addr := m.translateAddress(address)
+	return m.cart.PRGPages[addr]
 }
 
 func (m *MapperMMC3) WriteByte(address uint16, value byte) {
-    addr := m.translateAddress(address)
-    m.cart.PRGPages[addr] = value
+	addr := m.translateAddress(address)
+	m.cart.PRGPages[addr] = value
 }
 
 func (m *MapperMMC3) translateAddress(address uint16) int {
-    if address < 0x8000 {
-        panic("address out of range")
-    }
-    return m.prg_banks[(address - 0x8000) / 0x2000] * 8192 + int(address - 0x8000) & 0x1fff
+	if address < 0x8000 {
+		panic("address out of range")
+	}
+	return m.prg_banks[(address-0x8000)/0x2000]*8192 + int(address-0x8000)&0x1fff
 }

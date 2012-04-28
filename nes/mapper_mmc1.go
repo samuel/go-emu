@@ -117,32 +117,32 @@ package nes
 //           5-bit array for this data, not a separate one for each register.
 
 type MapperMMC1 struct {
-    cart *Cart
-    prg_banks []int
+	cart      *Cart
+	prg_banks []int
 }
 
 func (m *MapperMMC1) String() string {
-    return "{Type:MMC1}"
+	return "{Type:MMC1}"
 }
 
 func NewMapperMMC1(cart *Cart) *MapperMMC1 {
-    num_pages := len(cart.PRGPages) / 0x4000
-    return &MapperMMC1{cart:cart, prg_banks:[]int{0, num_pages-1}}
+	num_pages := len(cart.PRGPages) / 0x4000
+	return &MapperMMC1{cart: cart, prg_banks: []int{0, num_pages - 1}}
 }
 
 func (m *MapperMMC1) ReadByte(address uint16, peek bool) byte {
-    addr := m.translateAddress(address)
-    return m.cart.PRGPages[addr]
+	addr := m.translateAddress(address)
+	return m.cart.PRGPages[addr]
 }
 
 func (m *MapperMMC1) WriteByte(address uint16, value byte) {
-    addr := m.translateAddress(address)
-    m.cart.PRGPages[addr] = value
+	addr := m.translateAddress(address)
+	m.cart.PRGPages[addr] = value
 }
 
 func (m *MapperMMC1) translateAddress(address uint16) int {
-    if address < 0x8000 {
-        panic("address out of range")
-    }
-    return m.prg_banks[(address - 0x8000) / 0x4000] * 0x4000 + int(address & 0x3fff)
+	if address < 0x8000 {
+		panic("address out of range")
+	}
+	return m.prg_banks[(address-0x8000)/0x4000]*0x4000 + int(address&0x3fff)
 }
