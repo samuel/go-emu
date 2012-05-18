@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 
-	// "github.com/samuel/go-nes/z80"
-	"github.com/samuel/go-nes/gb"
+	// "github.com/samuel/go-emu/z80"
+	"github.com/samuel/go-emu/gb"
 )
 
 var (
@@ -28,5 +28,15 @@ func main() {
 		panic(err)
 	}
 
+	state, err := gb.New(cart)
+	if err != nil {
+		panic(err)
+	}
+
 	fmt.Println(cart)
+	fmt.Printf("%+v\n", state)
+
+	for i := 0; i < 10000; i++ {
+		state.Step()
+	}
 }

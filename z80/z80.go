@@ -31,6 +31,17 @@ type Z80 struct {
 func New(memory MemoryAccess) *Z80 {
 	cpu := &Z80{
 		memory: memory,
+		PC: 0x100,
 	}
 	return cpu
+}
+
+func (cpu *Z80) Step() (int, error) {
+	opcode := cpu.memory.ReadByte(cpu.PC, false)
+	cpu.PC += 1
+	println(opcode)
+	// switch opcode {
+	// case 
+	// }
+	return 0, nil
 }

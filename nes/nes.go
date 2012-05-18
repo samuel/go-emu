@@ -2,7 +2,7 @@ package nes
 
 import (
 	"fmt"
-	"github.com/samuel/go-nes/cpu6502"
+	"github.com/samuel/go-emu/cpu6502"
 	"os"
 )
 
@@ -47,6 +47,7 @@ type NESState struct {
 	PPUCycle     int
 	Scanline     int
 	VBlank       bool
+	VBlankReset  bool
 	mapper       Mapper
 	CPU          *cpu6502.CPU6502
 	apu          *APUState
@@ -93,11 +94,18 @@ func (nes *NESState) Step() {
 			nes.VBlank = false
 		} else if nes.Scanline == SCANLINE_VBLANK /*&& nes.PPUCycle != 0*/ {
 			nes.VBlank = true
-			if nes.ppuNMIEnabled {
-				nes.CPU.NMICounter = 2
+			// println(">>", nes.PPUCycle, "<<")
+			if nes.VBlankReset && nes.PPUCycle == 3 {
+				nes.VBlank = false
+				// println("AAA")
+			} else {
+				if nes.ppuNMIEnabled {
+					nes.CPU.NMICounter = 2
+				}
 			}
 		}
 	}
+	nes.VBlankReset = false
 }
 
 func (nes *NESState) ReadByte(address uint16, peek bool) byte {
@@ -117,6 +125,7 @@ func (nes *NESState) ReadByte(address uint16, peek bool) byte {
 			}
 			if !peek {
 				nes.VBlank = false
+				nes.VBlankReset = true
 			}
 			return val // VBlank
 		}

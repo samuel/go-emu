@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/samuel/go-nes/cpu6502"
-	"github.com/samuel/go-nes/nes"
+	"github.com/samuel/go-emu/cpu6502"
+	"github.com/samuel/go-emu/nes"
 )
 
 var (
