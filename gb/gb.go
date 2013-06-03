@@ -5,7 +5,7 @@ import (
 )
 
 type GBState struct {
-	CPU *z80.Z80
+	CPU  *z80.Z80
 	cart *Cart
 }
 

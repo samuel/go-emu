@@ -4,7 +4,7 @@ package cpu6502
 //     "fmt"
 //     "os"
 // )
-// 
+//
 // func DisassembleOne(memory MemoryAccess, address uint16) (OpcodeSpec, string, os.Error) {
 //     opcode, value, err := ReadOpcode(memory, address)
 //     if err != nil {

@@ -20,7 +20,7 @@ const (
 	BIT_NMI_ENABLE      = 0x80 // (0=Disabled, 1=Enabled)
 	BIT_PPU_SLAVE       = 0x40 // (0=Master, 1=Slave) (Not used in NES)
 	BIT_8x16_SPRITE     = 0x20 // (0=8x8, 1=8x16)
-	BIT_PAT_TBL_ADDR_BG = 0x10 // (0=VRAM 0000h, 1=VRAM 1000h) - Pattern Table Address Background 
+	BIT_PAT_TBL_ADDR_BG = 0x10 // (0=VRAM 0000h, 1=VRAM 1000h) - Pattern Table Address Background
 	BIT_PAT_TBL_ADDR_SP = 0x08 // (0=VRAM 0000h, 1=VRAM 1000h) - Pattern Table Address 8x8 Sprites
 	BIT_VRAM_ADDR_INC   = 0x04 // (0=Increment by 1, 1=Increment by 32) - Port 2007h VRAM Address Increment
 	BIT_NM_TBL_SCR_ADDR = 0x03 // (0-3=VRAM 2000h,2400h,2800h,2C00h) - Name Table Scroll Address

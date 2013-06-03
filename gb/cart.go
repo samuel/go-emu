@@ -10,8 +10,8 @@ import (
 
 // http://gbdev.gg8.se/wiki/articles/The_Cartridge_Header
 type Cart struct {
-	Title string
-	CGB bool
+	Title   string
+	CGB     bool
 	CGBOnly bool
 
 	memory []byte
@@ -19,9 +19,9 @@ type Cart struct {
 
 func (cart *Cart) String() string {
 	cgb := "no"
-	if (cart.CGBOnly) {
+	if cart.CGBOnly {
 		cgb = "only"
-	} else if (cart.CGB) {
+	} else if cart.CGB {
 		cgb = "yes"
 	}
 	return fmt.Sprintf("{Title:%s CGB:%s Manufacturer:%.4x MemoryLen:%d}",
@@ -49,7 +49,7 @@ func LoadCart(r io.Reader) (*Cart, error) {
 		cart.memory = append(cart.memory, b[:n]...)
 		if err == io.EOF {
 			break
-		} else if err != nil  {
+		} else if err != nil {
 			return nil, err
 		}
 	}
@@ -63,7 +63,7 @@ func LoadCart(r io.Reader) (*Cart, error) {
 	}
 
 	i := bytes.IndexByte(cart.memory[0x134:0x144], 0)
-	cart.Title = string(cart.memory[0x134:0x134+i])
+	cart.Title = string(cart.memory[0x134 : 0x134+i])
 	cart.CGB = cart.memory[0x143] == 0x80 || cart.memory[0x143] == 0xc0
 	cart.CGBOnly = cart.memory[0x143] == 0xc0
 

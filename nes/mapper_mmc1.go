@@ -3,12 +3,12 @@ package nes
 // +----------------+
 // ¦ Mapper 1: MMC1 ¦
 // +----------------+
-// 
+//
 // +--------------------------------------------------------------------+
 // ¦ This mapper is used on numerous U.S. and Japanese games, including ¦
 // ¦ Legend of Zelda, Metroid, Rad Racer, MegaMan 2, and many others.   ¦
 // +--------------------------------------------------------------------+
-// 
+//
 // +---------------+ +--------------------------------------------------------+
 // ¦ $8000 - $9FFF +-¦ RxxCFHPM                                               ¦
 // ¦ (Register 0)  ¦ ¦ ¦  ¦¦¦¦¦                                               ¦
@@ -40,7 +40,7 @@ package nes
 //                   ¦              0 = Do nothing                            ¦
 //                   ¦              1 = Reset register 0                      ¦
 //                   +--------------------------------------------------------+
-// 
+//
 // +---------------+ +--------------------------------------------------------+
 // ¦ $A000 - $BFFF +-¦ RxxPCCCC                                               ¦
 // ¦ (Register 1)  ¦ ¦ ¦  ¦¦  ¦                                               ¦
@@ -62,7 +62,7 @@ package nes
 //                   ¦              0 = Do nothing                            ¦
 //                   ¦              1 = Reset register 1                      ¦
 //                   +--------------------------------------------------------+
-// 
+//
 // +---------------+ +--------------------------------------------------------+
 // ¦ $C000 - $DFFF +-¦ RxxPCCCC                                               ¦
 // ¦ (Register 2)  ¦ ¦ ¦  ¦¦  ¦                                               ¦
@@ -81,7 +81,7 @@ package nes
 //                   ¦             0 = Do nothing                             ¦
 //                   ¦             1 = Reset register 2                       ¦
 //                   +--------------------------------------------------------+
-// 
+//
 // +---------------+ +--------------------------------------------------------+
 // ¦ $E000 - $FFFF +-¦ RxxxCCCC                                               ¦
 // ¦ (Register 3)  ¦ ¦ ¦   ¦  ¦                                               ¦
@@ -101,7 +101,7 @@ package nes
 //                   ¦             0 = Do nothing                             ¦
 //                   ¦             1 = Reset register 3                       ¦
 //                   +--------------------------------------------------------+
-// 
+//
 // Notes: - When the cart is first started, the first 16K ROM bank in the cart
 //           is loaded into $8000, and the LAST 16K bank into $C000. Normally,
 //           the first 16K bank is swapped via register 3 and the last bank

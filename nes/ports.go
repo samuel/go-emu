@@ -1,11 +1,11 @@
 package nes
 
-// 
+//
 // // SPR-RAM Memory Map (8bit buswidth, 0-FFh)
 // //   00-FF         Sprite Attributes (256 bytes, for 64 sprites / 4 bytes each)
 // // Sprite RAM is directly built-in in the PPU chip. SPR-RAM is not connected to
 // // CPU or PPU bus, and can be accessed via I/O Ports only.
-// 
+//
 // // I/O Map
 // //   2000h - PPU Control Register 1 (W)
 //   // Bit7  Execute NMI on VBlank             (0=Disabled, 1=Enabled)
@@ -51,18 +51,18 @@ package nes
 // //   4020h - VS Unisystem Coin Acknowlege
 // //   4020h-40FFh - Famicom Disk System (FDS)
 // //   4100h-FFFFh - Various addresses used by various cartridge mappers
-// 
+//
 // type Ports struct {
 //     ppuports [8]byte
 //     apuports
 // }
-// 
+//
 // func NewPorts() *Ports {
 //     p := Ports{}
 //     // p.ports = make([]byte, 8, 8)
 //     return &p
 // }
-// 
+//
 // func (p *Ports) ReadByte(address uint16) byte {
 //     if address >= 0x2000 && address <= 0x2007 {
 //         return 0
@@ -72,10 +72,10 @@ package nes
 //     }
 //     panic("unknown port memory address")
 // }
-// 
+//
 // func (p *Ports) WriteByte(address uint16, value byte) {
 // }
-// 
+//
 // func (p *Ports) Slice(address uint16) []byte {
 //     panic("Can't slice Ports")
 // }
